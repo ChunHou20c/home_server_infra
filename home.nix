@@ -22,14 +22,20 @@ let
     echo "[backup] copying encryption key..."
     cp "$RSA_KEY" "$BACKUP_DIR/$DATE/rsa_key.pem"
 
+    if [ -d "$DATA_DIR/attachments" ]; then
+      echo "[backup] copying attachments directory..."
+      cp -r "$DATA_DIR/attachments" "$BACKUP_DIR/$DATE/attachments"
+    fi
+
     echo "[backup] compressing..."
     tar czf "$BACKUP_DIR/vaultwarden_$DATE.tar.gz" \
       -C "$BACKUP_DIR/$DATE" \
       "db.sqlite3" \
-      "rsa_key.pem"
+      "rsa_key.pem" \
+      "attachments"
 
     # cleanup intermediate files
-    rm "$BACKUP_DIR/$DATE/db.sqlite3" "$BACKUP_DIR/$DATE/rsa_key.pem"
+    rm -rf "$BACKUP_DIR/$DATE"
 
     echo "[backup] done: $DATE"
   '';
