@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -e
+
+HOST=$1
+
+if [ -z "$HOST" ]; then
+  echo "Usage: deploy <host>"
+  exit 1
+fi
+
+echo "Deploying to $HOST..."
+
+git push
+
+ssh "$HOST" "
+  cd ~/infra &&
+  git pull &&
+  nix run nixpkgs#home-manager -- switch --flake .#server
+"

@@ -19,5 +19,15 @@
         ./home.nix
       ];
     };
+    devShells.${system}.default = pkgs.mkShell {
+      packages = [
+        pkgs.git
+        pkgs.openssh
+      ];
+
+      shellHook = ''
+        export PATH=$PWD/scripts:$PATH
+      '';
+    };
   };
 }
