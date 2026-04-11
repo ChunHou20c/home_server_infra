@@ -57,6 +57,16 @@ let
       --endpoint-url "$R2_ENDPOINT"
 
     echo "[backup] remote backup done: $DATE"
+
+    echo "[backup] cleaning local backups older than 7 days..."
+
+    find "$BACKUP_DIR" \
+      -type f \
+      -name "vaultwarden_*.tar.gz" \
+      -mtime +7 \
+      -delete
+
+    echo "[backup] done: $DATE"
   '';
 in
 {
