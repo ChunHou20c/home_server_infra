@@ -56,7 +56,7 @@
 	"SIGNUPS_ALLOWED=false"
 	"WEBSOCKET_ENABLED=true"
 	"WEB_VAULT_ENABLED=true"
-	"WEB_VAULT_FOLDER=${pkgs.vaultwarden-webvault}/share/vaultwarden-web"
+	"WEB_VAULT_FOLDER=${pkgs.vaultwarden-webvault}/share/vaultwarden/vault"
       ];
 
       EnvironmentFile = "%h/.config/vaultwarden/env";
