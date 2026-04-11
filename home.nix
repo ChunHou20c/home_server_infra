@@ -10,6 +10,7 @@ let
     DB="$DATA_DIR/db.sqlite3"
     OUT_DB="$BACKUP_DIR/$DATE/db.sqlite3"
     RSA_KEY="$DATA_DIR/rsa_key.pem"
+    LOCAL_FILE="$BACKUP_DIR/vaultwarden_$DATE.tar.gz"
 
     mkdir -p "$BACKUP_DIR"
     mkdir -p "$BACKUP_DIR/$DATE"
@@ -29,7 +30,7 @@ let
     fi
 
     echo "[backup] compressing..."
-    tar czf "$BACKUP_DIR/vaultwarden_$DATE.tar.gz" \
+    tar czf $LOCAL_FILE \
       -C "$BACKUP_DIR/$DATE" \
       "db.sqlite3" \
       "rsa_key.pem" \
@@ -38,7 +39,24 @@ let
     # cleanup intermediate files
     rm -rf "$BACKUP_DIR/$DATE"
 
-    echo "[backup] done: $DATE"
+    echo "[backup] local backup done: $DATE"
+
+    echo "Setting up environment variables for R2 CLI..."
+    if [ -f "$HOME/.config/r2/env" ]; then
+      source "$HOME/.config/r2/env"
+    else
+      echo "Missing R2 env file"
+    exit 1
+    fi
+
+    echo "[backup] uploading to R2..."
+
+    ${pkgs.awscli2}/bin/aws s3 cp \
+      "$LOCAL_FILE" \
+      "s3://$R2_BUCKET/vaultwarden/$DATE.tar.gz" \
+      --endpoint-url "$R2_ENDPOINT"
+
+    echo "[backup] remote backup done: $DATE"
   '';
 in
 {
@@ -52,6 +70,7 @@ in
     pkgs.curl
     pkgs.htop
     pkgs.sqlite
+    pkgs.awscli2
 
     pkgs.cloudflared
     pkgs.vaultwarden
