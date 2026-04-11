@@ -13,6 +13,7 @@
 
     pkgs.cloudflared
     pkgs.vaultwarden
+    pkgs.vaultwarden-webvault
   ];
 
   home.sessionVariables = {
@@ -54,7 +55,8 @@
 
 	"SIGNUPS_ALLOWED=false"
 	"WEBSOCKET_ENABLED=true"
-	"WEB_VAULT_ENABLED=false"
+	"WEB_VAULT_ENABLED=true"
+	"WEB_VAULT_FOLDER=${pkgs.vaultwarden-webvault}/share/vaultwarden-web"
       ];
 
       EnvironmentFile = "%h/.config/vaultwarden/env";
