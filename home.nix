@@ -54,6 +54,7 @@
 
 	"SIGNUPS_ALLOWED=false"
 	"WEBSOCKET_ENABLED=true"
+	"WEB_VAULT_ENABLED=false"
       ];
     };
 
