@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 {
   home.username = "chunhou";
@@ -12,7 +12,12 @@
     pkgs.htop
 
     pkgs.cloudflared
+    pkgs.vaultwarden
   ];
+
+  home.sessionVariables = {
+    VAULTWARDEN_DATA_DIR = "${config.home.homeDirectory}/.local/share/vaultwarden";
+  };
 
   systemd.user.services.cloudflared = {
     Unit = {
@@ -25,6 +30,31 @@
       Restart = "always";
       RestartSec = 5;
       EnvironmentFile = "%h/.config/cloudflared/env";
+    };
+
+    Install = {
+      WantedBy = [ "default.target" ];
+    };
+  };
+
+  systemd.user.services.vaultwarden = {
+    Unit = {
+      Description = "Vaultwarden Password Manager";
+      After = [ "network.target" ];
+    };
+
+    Service = {
+      ExecStart = "${pkgs.vaultwarden}/bin/vaultwarden";
+      Restart = "always";
+
+      Environment = [
+	"DATA_FOLDER=%h/.local/share/vaultwarden"
+	"ROCKET_PORT=8222"
+	"ROCKET_ADDRESS=127.0.0.1"
+
+	"SIGNUPS_ALLOWED=false"
+	"WEBSOCKET_ENABLED=true"
+      ];
     };
 
     Install = {
