@@ -56,6 +56,8 @@
 	"WEBSOCKET_ENABLED=true"
 	"WEB_VAULT_ENABLED=false"
       ];
+
+      EnvironmentFile = "%h/.config/vaultwarden/env";
     };
 
     Install = {
