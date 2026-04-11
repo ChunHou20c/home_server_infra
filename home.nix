@@ -13,6 +13,7 @@ let
 
     mkdir -p "$BACKUP_DIR"
     mkdir -p "$BACKUP_DIR/$DATE"
+    mkdir -p "$BACKUP_DIR/$DATE/attachments"
 
     echo "[backup] creating sqlite snapshot..."
 
