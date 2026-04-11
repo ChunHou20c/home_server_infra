@@ -8,10 +8,11 @@ let
     DATE=$(date +%Y-%m-%d_%H-%M-%S)
 
     DB="$DATA_DIR/db.sqlite3"
-    OUT_DB="$BACKUP_DIR/db_$DATE.sqlite3"
+    OUT_DB="$BACKUP_DIR/$DATE/db.sqlite3"
     RSA_KEY="$DATA_DIR/rsa_key.pem"
 
     mkdir -p "$BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR/$DATE"
 
     echo "[backup] creating sqlite snapshot..."
 
@@ -19,16 +20,16 @@ let
     ${pkgs.sqlite}/bin/sqlite3 "$DB" ".backup '$OUT_DB'"
 
     echo "[backup] copying encryption key..."
-    cp "$RSA_KEY" "$BACKUP_DIR/rsa_key_$DATE.pem"
+    cp "$RSA_KEY" "$BACKUP_DIR/$DATE/rsa_key.pem"
 
     echo "[backup] compressing..."
     tar czf "$BACKUP_DIR/vaultwarden_$DATE.tar.gz" \
-      -C "$BACKUP_DIR" \
-      "db_$DATE.sqlite3" \
-      "rsa_key_$DATE.pem"
+      -C "$BACKUP_DIR/$DATE" \
+      "db.sqlite3" \
+      "rsa_key.pem"
 
     # cleanup intermediate files
-    rm "$BACKUP_DIR/db_$DATE.sqlite3" "$BACKUP_DIR/rsa_key_$DATE.pem"
+    rm "$BACKUP_DIR/$DATE/db.sqlite3" "$BACKUP_DIR/$DATE/rsa_key.pem"
 
     echo "[backup] done: $DATE"
   '';
