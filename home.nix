@@ -1,5 +1,38 @@
 { pkgs, config, ... }:
+let
+  vaultwardenBackup = pkgs.writeShellScriptBin "vaultwarden-backup" ''
+    set -euo pipefail
 
+    DATA_DIR="$HOME/.local/share/vaultwarden"
+    BACKUP_DIR="$HOME/backups/vaultwarden"
+    DATE=$(date +%Y-%m-%d_%H-%M-%S)
+
+    DB="$DATA_DIR/db.sqlite3"
+    OUT_DB="$BACKUP_DIR/db_$DATE.sqlite3"
+    RSA_KEY="$DATA_DIR/rsa_key.pem"
+
+    mkdir -p "$BACKUP_DIR"
+
+    echo "[backup] creating sqlite snapshot..."
+
+    # Safe online backup (NO downtime)
+    ${pkgs.sqlite}/bin/sqlite3 "$DB" ".backup '$OUT_DB'"
+
+    echo "[backup] copying encryption key..."
+    cp "$RSA_KEY" "$BACKUP_DIR/rsa_key_$DATE.pem"
+
+    echo "[backup] compressing..."
+    tar czf "$BACKUP_DIR/vaultwarden_$DATE.tar.gz" \
+      -C "$BACKUP_DIR" \
+      "db_$DATE.sqlite3" \
+      "rsa_key_$DATE.pem"
+
+    # cleanup intermediate files
+    rm "$BACKUP_DIR/db_$DATE.sqlite3" "$BACKUP_DIR/rsa_key_$DATE.pem"
+
+    echo "[backup] done: $DATE"
+  '';
+in
 {
   home.username = "chunhou";
   home.homeDirectory = "/home/chunhou";
@@ -10,10 +43,13 @@
     pkgs.git
     pkgs.curl
     pkgs.htop
+    pkgs.sqlite3
 
     pkgs.cloudflared
     pkgs.vaultwarden
     pkgs.vaultwarden-webvault
+
+    vaultwardenBackup
   ];
 
   home.sessionVariables = {
@@ -64,6 +100,33 @@
 
     Install = {
       WantedBy = [ "default.target" ];
+    };
+  };
+
+  systemd.user.services.vaultwarden-backup = {
+    Unit = {
+      Description = "Vaultwarden nightly backup";
+    };
+
+    Service = {
+      Type = "oneshot";
+      ExecStart = "%h/scripts/vaultwarden-backup.sh";
+    };
+  };
+
+  systemd.user.timers.vaultwarden-backup = {
+    Unit = {
+      Description = "Run Vaultwarden backup daily at night";
+    };
+
+    Timer = {
+      OnCalendar = "daily";
+      Persistent = true;
+      RandomizedDelaySec = "30m";
+    };
+
+    Install = {
+      WantedBy = [ "timers.target" ];
     };
   };
 
