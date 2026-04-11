@@ -21,10 +21,10 @@
     };
 
     Service = {
-      ExecStart = "${pkgs.cloudflared}/bin/cloudflared tunnel run --token YOUR_TOKEN";
+      ExecStart = "${pkgs.cloudflared}/bin/cloudflared tunnel run --token $TUNNEL_TOKEN";
       Restart = "always";
       RestartSec = 5;
-      Environment = "TUNNEL_TOKEN=your_token_here";
+      EnvironmentFile = "%h/.config/cloudflared/env";
     };
 
     Install = {
