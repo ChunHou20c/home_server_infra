@@ -43,7 +43,7 @@ in
     pkgs.git
     pkgs.curl
     pkgs.htop
-    pkgs.sqlite3
+    pkgs.sqlite
 
     pkgs.cloudflared
     pkgs.vaultwarden
