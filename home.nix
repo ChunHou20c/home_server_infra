@@ -147,7 +147,7 @@ in
 
     Service = {
       Type = "oneshot";
-      ExecStart = "vaultwarden-backup";
+      ExecStart = "${vaultwardenBackup}/bin/vaultwarden-backup";
     };
   };
 
