@@ -147,7 +147,7 @@ in
 
     Service = {
       Type = "oneshot";
-      ExecStart = "%h/scripts/vaultwarden-backup.sh";
+      ExecStart = "vaultwarden-backup";
     };
   };
 
