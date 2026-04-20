@@ -27,6 +27,72 @@ let
     fi
   '';
 
+  vikunjaBackup = pkgs.writeShellScriptBin "vikunja-backup" ''
+    set -euo pipefail
+
+    DATA_DIR="$HOME/.local/share/vikunja"
+    BACKUP_DIR="$HOME/backups/vikunja"
+    DATE=$(date +%Y-%m-%d_%H-%M-%S)
+
+    DUMP="$BACKUP_DIR/$DATE/vikunja.sql.gz"
+    LOCAL_FILE="$BACKUP_DIR/vikunja_$DATE.tar.gz"
+
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR/$DATE"
+
+    echo "[backup] dumping postgres database..."
+    ${pkgs.postgresql}/bin/pg_dump \
+      -h localhost \
+      -p 5433 \
+      -U vikunja \
+      -d vikunja \
+      --no-owner \
+      --no-privileges \
+      | ${pkgs.gzip}/bin/gzip > "$DUMP"
+
+    if [ -d "$DATA_DIR/files" ]; then
+      echo "[backup] copying files directory..."
+      cp -r "$DATA_DIR/files" "$BACKUP_DIR/$DATE/files"
+    fi
+
+    echo "[backup] compressing..."
+    tar czf $LOCAL_FILE \
+      -C "$BACKUP_DIR/$DATE" \
+      .
+
+    # cleanup intermediate files
+    rm -rf "$BACKUP_DIR/$DATE"
+
+    echo "[backup] local backup done: $DATE"
+
+    echo "Setting up environment variables for R2 CLI..."
+    if [ -f "$HOME/.config/r2/env" ]; then
+      source "$HOME/.config/r2/env"
+    else
+      echo "Missing R2 env file"
+    exit 1
+    fi
+
+    echo "[backup] uploading to R2..."
+
+    ${pkgs.awscli2}/bin/aws s3 cp \
+      "$LOCAL_FILE" \
+      "s3://$R2_BUCKET/vikunja/$DATE.tar.gz" \
+      --endpoint-url "$R2_ENDPOINT"
+
+    echo "[backup] remote backup done: $DATE"
+
+    echo "[backup] cleaning local backups older than 7 days..."
+
+    find "$BACKUP_DIR" \
+      -type f \
+      -name "vikunja_*.tar.gz" \
+      -mtime +7 \
+      -delete
+
+    echo "[backup] done: $DATE"
+  '';
+
   vaultwardenBackup = pkgs.writeShellScriptBin "vaultwarden-backup" ''
     set -euo pipefail
 
@@ -116,6 +182,7 @@ in
     pkgs.postgresql
 
     vaultwardenBackup
+    vikunjaBackup
   ];
 
   home.sessionVariables = {
@@ -238,6 +305,35 @@ in
   systemd.user.timers.vaultwarden-backup = {
     Unit = {
       Description = "Run Vaultwarden backup daily at night";
+    };
+
+    Timer = {
+      OnCalendar = "daily";
+      Persistent = true;
+      RandomizedDelaySec = "30m";
+    };
+
+    Install = {
+      WantedBy = [ "timers.target" ];
+    };
+  };
+
+  systemd.user.services.vikunja-backup = {
+    Unit = {
+      Description = "Vikunja nightly backup";
+      After = [ "vikunja-postgres.service" ];
+      Requires = [ "vikunja-postgres.service" ];
+    };
+
+    Service = {
+      Type = "oneshot";
+      ExecStart = "${vikunjaBackup}/bin/vikunja-backup";
+    };
+  };
+
+  systemd.user.timers.vikunja-backup = {
+    Unit = {
+      Description = "Run Vikunja backup daily at night";
     };
 
     Timer = {
