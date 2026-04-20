@@ -1,5 +1,31 @@
 { pkgs, config, ... }:
 let
+  vikunjaPgInit = pkgs.writeShellScript "vikunja-pg-init" ''
+    set -euo pipefail
+
+    PGDATA="$HOME/.local/share/vikunja/postgres"
+
+    if [ ! -s "$PGDATA/PG_VERSION" ]; then
+      mkdir -p "$PGDATA"
+      chmod 700 "$PGDATA"
+
+      ${pkgs.postgresql}/bin/initdb \
+        -D "$PGDATA" \
+        --auth-local=trust \
+        --auth-host=trust \
+        --username=vikunja \
+        --encoding=UTF8
+
+      {
+        echo "listen_addresses = 'localhost'"
+        echo "port = 5433"
+      } >> "$PGDATA/postgresql.conf"
+
+      echo "CREATE DATABASE vikunja OWNER vikunja;" | \
+        ${pkgs.postgresql}/bin/postgres --single -D "$PGDATA" postgres
+    fi
+  '';
+
   vaultwardenBackup = pkgs.writeShellScriptBin "vaultwarden-backup" ''
     set -euo pipefail
 
@@ -85,12 +111,15 @@ in
     pkgs.cloudflared
     pkgs.vaultwarden
     pkgs.vaultwarden-webvault
+    pkgs.vikunja
+    pkgs.postgresql
 
     vaultwardenBackup
   ];
 
   home.sessionVariables = {
     VAULTWARDEN_DATA_DIR = "${config.home.homeDirectory}/.local/share/vaultwarden";
+    VIKUNJA_DATA_DIR = "${config.home.homeDirectory}/.local/share/vikunja";
   };
 
   systemd.user.services.cloudflared = {
@@ -133,6 +162,60 @@ in
       ];
 
       EnvironmentFile = "%h/.config/vaultwarden/env";
+    };
+
+    Install = {
+      WantedBy = [ "default.target" ];
+    };
+  };
+
+  systemd.user.services.vikunja-postgres = {
+    Unit = {
+      Description = "PostgreSQL instance for Vikunja";
+      After = [ "network.target" ];
+    };
+
+    Service = {
+      Type = "notify";
+      ExecStartPre = "${vikunjaPgInit}";
+      ExecStart = "${pkgs.postgresql}/bin/postgres -D %h/.local/share/vikunja/postgres";
+      Restart = "always";
+      RestartSec = 5;
+    };
+
+    Install = {
+      WantedBy = [ "default.target" ];
+    };
+  };
+
+  systemd.user.services.vikunja = {
+    Unit = {
+      Description = "Vikunja Task Manager";
+      After = [ "network.target" "vikunja-postgres.service" ];
+      Requires = [ "vikunja-postgres.service" ];
+    };
+
+    Service = {
+      ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p %h/.local/share/vikunja/files";
+      ExecStart = "${pkgs.vikunja}/bin/vikunja";
+      Restart = "always";
+
+      Environment = [
+	"VIKUNJA_DATABASE_TYPE=postgres"
+	"VIKUNJA_DATABASE_HOST=localhost:5433"
+	"VIKUNJA_DATABASE_USER=vikunja"
+	"VIKUNJA_DATABASE_DATABASE=vikunja"
+	"VIKUNJA_DATABASE_SSLMODE=disable"
+
+	"VIKUNJA_SERVICE_ROOTPATH=%h/.local/share/vikunja"
+	"VIKUNJA_FILES_BASEPATH=%h/.local/share/vikunja/files"
+
+	"VIKUNJA_SERVICE_INTERFACE=127.0.0.1:3456"
+	"VIKUNJA_SERVICE_PUBLICURL=https://vikunja.chunhou20c.dev"
+	"VIKUNJA_SERVICE_ENABLEREGISTRATION=false"
+      ];
+
+      EnvironmentFile = "%h/.config/vikunja/env";
     };
 
     Install = {
