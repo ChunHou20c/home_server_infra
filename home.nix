@@ -19,6 +19,7 @@ let
       {
         echo "listen_addresses = 'localhost'"
         echo "port = 5433"
+        echo "unix_socket_directories = '''"
       } >> "$PGDATA/postgresql.conf"
 
       echo "CREATE DATABASE vikunja OWNER vikunja;" | \
