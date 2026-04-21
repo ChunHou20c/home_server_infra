@@ -281,6 +281,14 @@ in
 	"VIKUNJA_SERVICE_INTERFACE=127.0.0.1:3456"
 	"VIKUNJA_SERVICE_PUBLICURL=https://vikunja.chunhou20c.dev"
 	"VIKUNJA_SERVICE_ENABLEREGISTRATION=false"
+
+	"VIKUNJA_MAILER_ENABLED=true"
+	"VIKUNJA_MAILER_HOST=smtp.protonmail.ch"
+	"VIKUNJA_MAILER_PORT=587"
+	"VIKUNJA_MAILER_USERNAME=llamma@chunhou20c.dev"
+	"VIKUNJA_MAILER_FROMEMAIL=llamma@chunhou20c.dev"
+	"VIKUNJA_MAILER_FORCESSL=false"
+	"VIKUNJA_MAILER_SKIPTLSVERIFY=false"
       ];
 
       EnvironmentFile = "%h/.config/vikunja/env";
