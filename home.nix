@@ -262,6 +262,35 @@ let
     echo "[backup] done: $DATE"
   '';
 
+  logReportHtmlPrefix = pkgs.writeText "log-summary-prefix.html" ''
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #222; max-width: 720px; margin: 0 auto; padding: 16px; line-height: 1.5; }
+    h1 { font-size: 20px; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-top: 0; }
+    h2 { font-size: 16px; margin-top: 24px; color: #333; }
+    h3 { font-size: 14px; color: #444; margin-top: 18px; margin-bottom: 4px; }
+    table { border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+    th, td { padding: 6px 12px; border: 1px solid #ddd; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    td:nth-child(2), td:nth-child(3) { text-align: right; font-variant-numeric: tabular-nums; }
+    ul { padding-left: 22px; margin: 6px 0; }
+    li { margin: 2px 0; }
+    p { margin: 6px 0; }
+    code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; background: #f5f5f5; padding: 1px 5px; border-radius: 3px; }
+    blockquote { border-left: 3px solid #fbc02d; background: #fff8e1; padding: 8px 14px; margin: 12px 0; color: #5d4037; }
+    </style>
+    </head>
+    <body>
+  '';
+
+  logReportHtmlSuffix = pkgs.writeText "log-summary-suffix.html" ''
+    </body>
+    </html>
+  '';
+
   logSummary = pkgs.writeShellScriptBin "log-summary" ''
     set -euo pipefail
 
@@ -376,7 +405,7 @@ let
         echo ""
         echo "## TL;DR"
         echo ""
-        echo "$headline"
+        echo "$headline" | ${pkgs.gnused}/bin/sed 's/^/> /'
         ${pkgs.coreutils}/bin/tail -n +2 "$REPORT"
       } > "$REPORT.tmp" && ${pkgs.coreutils}/bin/mv "$REPORT.tmp" "$REPORT"
     else
@@ -390,15 +419,30 @@ let
     if [ -n "''${MAIL_TO:-}" ] && [ -n "''${SMTP_USER:-}" ] && [ -n "''${SMTP_PASS:-}" ] && [ -n "''${MAIL_FROM:-}" ]; then
       SUBJECT="[home-lab] log summary $DATE — $TOTAL_ERR errors, $TOTAL_WARN warnings"
       RFC_DATE=$(${pkgs.coreutils}/bin/date -R)
+      BOUNDARY="homelab-$(${pkgs.coreutils}/bin/date +%s)-$$"
       {
         echo "From: $MAIL_FROM"
         echo "To: $MAIL_TO"
         echo "Subject: $SUBJECT"
         echo "Date: $RFC_DATE"
         echo "MIME-Version: 1.0"
+        echo "Content-Type: multipart/alternative; boundary=\"$BOUNDARY\""
+        echo ""
+        echo "--$BOUNDARY"
         echo "Content-Type: text/plain; charset=UTF-8"
+        echo "Content-Transfer-Encoding: 8bit"
         echo ""
         ${pkgs.coreutils}/bin/cat "$REPORT"
+        echo ""
+        echo "--$BOUNDARY"
+        echo "Content-Type: text/html; charset=UTF-8"
+        echo "Content-Transfer-Encoding: 8bit"
+        echo ""
+        ${pkgs.coreutils}/bin/cat ${logReportHtmlPrefix}
+        ${pkgs.cmark-gfm}/bin/cmark-gfm --extension table "$REPORT"
+        ${pkgs.coreutils}/bin/cat ${logReportHtmlSuffix}
+        echo ""
+        echo "--$BOUNDARY--"
       } | ${pkgs.curl}/bin/curl --silent --show-error --ssl-reqd \
           --url "smtp://smtp.protonmail.ch:587" \
           --user "$SMTP_USER:$SMTP_PASS" \
