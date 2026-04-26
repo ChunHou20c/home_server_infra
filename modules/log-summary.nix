@@ -104,6 +104,24 @@ let
       SUMMARIES[$svc]=$(call_llm "$prompt" "60s")
     done
 
+    TIMER_JOBS=(vaultwarden-backup vikunja-backup couchdb-backup)
+    declare -A JOB_LAST
+    declare -A JOB_RESULT
+
+    for job in "''${TIMER_JOBS[@]}"; do
+      start_raw=$(${pkgs.systemd}/bin/systemctl --user show "$job.service" -p ExecMainStartTimestamp --value 2>/dev/null || true)
+      result=$(${pkgs.systemd}/bin/systemctl --user show "$job.service" -p Result --value 2>/dev/null || true)
+
+      if [ -z "$start_raw" ] || [ "$start_raw" = "n/a" ]; then
+        JOB_LAST[$job]="never"
+      else
+        read -r _ d t _ <<< "$start_raw"
+        JOB_LAST[$job]="$d $t"
+      fi
+
+      JOB_RESULT[$job]="''${result:-unknown}"
+    done
+
     {
       echo "# Home Lab Log Summary — $DATE"
       echo ""
@@ -113,6 +131,14 @@ let
       echo "|---------|---------:|-------:|"
       for svc in "''${SERVICES[@]}"; do
         echo "| $svc | ''${WARN_COUNTS[$svc]} | ''${ERR_COUNTS[$svc]} |"
+      done
+      echo ""
+      echo "## Backup status"
+      echo ""
+      echo "| job | last run | result |"
+      echo "|-----|----------|--------|"
+      for job in "''${TIMER_JOBS[@]}"; do
+        echo "| $job | ''${JOB_LAST[$job]} | ''${JOB_RESULT[$job]} |"
       done
       echo ""
       echo "## Per-service"
@@ -215,9 +241,8 @@ in
     };
 
     Timer = {
-      OnCalendar = "daily";
+      OnCalendar = "05:00";
       Persistent = true;
-      RandomizedDelaySec = "30m";
     };
 
     Install = {

@@ -225,9 +225,8 @@ in
     };
 
     Timer = {
-      OnCalendar = "daily";
+      OnCalendar = "04:00";
       Persistent = true;
-      RandomizedDelaySec = "30m";
     };
 
     Install = {
